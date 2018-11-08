@@ -92,6 +92,7 @@ enum algos {
 	ALGO_C11,         /* C11 Chaincoin/Flaxcoin X11 variant */
 	ALGO_CRYPTOLIGHT, /* cryptonight-light (Aeon) */
 	ALGO_CRYPTONIGHT, /* CryptoNight */
+	ALGO_CUCKOO,      /* Cuckoo Cycle */
 	ALGO_DECRED,      /* Decred */
 	ALGO_DMD_GR,      /* Diamond */
 	ALGO_DROP,        /* Dropcoin */
@@ -156,6 +157,7 @@ static const char *algo_names[] = {
 	"c11",
 	"cryptolight",
 	"cryptonight",
+	"cuckoo",
 	"decred",
 	"dmd-gr",
 	"drop",
@@ -315,6 +317,7 @@ Options:\n\
                           c11/flax     C11\n\
                           cryptolight  Cryptonight-light\n\
                           cryptonight  Monero\n\
+                          cuckoo       Cuckoo Cycle\n\
                           decred       Blake-256 14-rounds 180 bytes\n\
                           dmd-gr       Diamond-Groestl\n\
                           drop         Dropcoin\n\
@@ -1198,7 +1201,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 		}
 
 	} else if (work->txs) { /* gbt */
-
+                
 		char data_str[2 * sizeof(work->data) + 1];
 		char *req;
 
@@ -1211,16 +1214,38 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 			json_object_set_new(val, "workid", json_string(work->workid));
 			params = json_dumps(val, 0);
 			json_decref(val);
-			req = (char*) malloc(128 + 2 * 80 + strlen(work->txs) + strlen(params));
-			sprintf(req,
+                        if (ALGO_CUCKOO == opt_algo)
+                        {
+			  req = (char*) malloc(128 + 2 * 80 + strlen(work->txs) + (42 * sizeof(uint32_t)) + strlen(params));
+			  sprintf(req,
 				"{\"method\": \"submitblock\", \"params\": [\"%s%s\", %s], \"id\":4}\r\n",
 				data_str, work->txs, params);
+
+                        }
+                        else
+                        {
+			  req = (char*) malloc(128 + 2 * 80 + strlen(work->txs) + strlen(params));
+			  sprintf(req,
+				"{\"method\": \"submitblock\", \"params\": [\"%s%s\", %s], \"id\":4}\r\n",
+				data_str, work->txs, params);
+                        }
 			free(params);
 		} else {
-			req = (char*) malloc(128 + 2 * 80 + strlen(work->txs));
-			sprintf(req,
+                        if (ALGO_CUCKOO == opt_algo)
+                        {
+			  req = (char*) malloc(128 + 2 * 80 + (42 * sizeof(uint32_t)) + strlen(work->txs));
+			  sprintf(req,
 				"{\"method\": \"submitblock\", \"params\": [\"%s%s\"], \"id\":4}\r\n",
 				data_str, work->txs);
+                        }
+                        else
+                        {
+			  req = (char*) malloc(128 + 2 * 80 + strlen(work->txs));
+			  sprintf(req,
+				"{\"method\": \"submitblock\", \"params\": [\"%s%s\"], \"id\":4}\r\n",
+				data_str, work->txs);
+
+                        }
 		}
 
 		val = json_rpc_call(curl, rpc_url, rpc_userpass, req, NULL, 0);
@@ -2271,6 +2296,9 @@ static void *miner_thread(void *userdata)
 			break;
 		case ALGO_CRYPTONIGHT:
 			rc = scanhash_cryptonight(thr_id, &work, max_nonce, &hashes_done);
+			break;
+		case ALGO_CUCKOO:
+			rc = scanhash_cuckoo(thr_id, &work, max_nonce, &hashes_done);
 			break;
 		case ALGO_DECRED:
 			rc = scanhash_decred(thr_id, &work, max_nonce, &hashes_done);

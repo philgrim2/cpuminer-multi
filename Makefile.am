@@ -43,6 +43,7 @@ cpuminer_SOURCES = \
   sha3/gost_streebog.c \
   crypto/blake2s.c \
   crypto/blake2b.c \
+  crypto/blake2b-ref.c \
   crypto/oaes_lib.c \
   crypto/c_keccak.c \
   crypto/c_groestl.c \
@@ -64,6 +65,7 @@ cpuminer_SOURCES = \
   algo/c11.c \
   algo/cryptonight.c \
   algo/cryptolight.c \
+  algo/cuckoo.cpp \
   algo/decred.c \
   algo/drop.c \
   algo/fresh.c \
